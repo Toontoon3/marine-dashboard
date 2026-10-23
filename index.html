@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Secure Marine Data API</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="app">
+
+  <!-- LANDING -->
+  <div id="landing" class="screen">
+    <nav class="land-nav">
+      <span class="logo"><span class="logo-mark">⬡</span> MarineSecure</span>
+      <div class="land-nav-right">
+        <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">◐</button>
+        <button class="btn btn-ghost" onclick="showScreen('login')">Sign in</button>
+        <button class="btn btn-primary" onclick="showScreen('register')">Get access</button>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-eyebrow"><span class="status-dot"></span>API live · TLS 1.3 · JWT authenticated</div>
+      <h1 class="hero-title">Secure exchange<br>of oceanographic data</h1>
+      <p class="hero-sub">A hardened REST API for marine research institutions — role-based access control, end-to-end audit logging, and encrypted data transfer for sensitive oceanographic datasets.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="showScreen('register')">Create researcher account</button>
+        <button class="btn btn-outline btn-lg" onclick="showScreen('login')">Sign in</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num" id="stat-health">Checking...</span><span class="stat-label">API status</span></div>
+        <div class="stat"><span class="stat-num">TLS 1.3</span><span class="stat-label">Transport</span></div>
+        <div class="stat"><span class="stat-num">JWT</span><span class="stat-label">Auth</span></div>
+        <div class="stat"><span class="stat-num">RBAC</span><span class="stat-label">Access control</span></div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-icon">🔐</div><h3>JWT Authentication</h3><p>Signed tokens with 30-minute expiry and Redis-backed blacklist on logout.</p></div>
+        <div class="feature-card"><div class="feature-icon">👥</div><h3>Role-Based Access</h3><p>Researcher, institution admin, and system administrator tiers.</p></div>
+        <div class="feature-card"><div class="feature-icon">📋</div><h3>Audit Logging</h3><p>Every upload, download, login, and denial recorded permanently.</p></div>
+        <div class="feature-card"><div class="feature-icon">🌊</div><h3>Marine Data Types</h3><p>Bathymetric, CTD profiles, AIS logs, sonar, meteorological.</p></div>
+        <div class="feature-card"><div class="feature-icon">⚡</div><h3>Rate Limiting</h3><p>Redis sliding-window — 10 req/min on auth, 100 req/min general.</p></div>
+        <div class="feature-card"><div class="feature-icon">🐳</div><h3>Docker Deployed</h3><p>FastAPI + PostgreSQL + Redis + Nginx, fully containerised.</p></div>
+      </div>
+    </section>
+
+    <footer class="land-footer">
+      <span>Built by <strong>Goodness Oluwayinka</strong> · Marine Geoscience × Cybersecurity</span>
+      <a href="https://github.com/yourusername/secure-marine-api" target="_blank" class="footer-link">GitHub →</a>
+    </footer>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="login" class="screen screen-auth" style="display:none">
+    <div class="auth-card">
+      <div class="auth-header">
+        <span class="logo"><span class="logo-mark">⬡</span> MarineSecure</span>
+        <button class="theme-btn" onclick="toggleTheme()">◐</button>
+      </div>
+      <h2>Sign in</h2>
+      <p class="auth-sub">Access your institution's research datasets</p>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="field"><label>Email address</label><input type="email" id="login-email" placeholder="you@institution.ie" required/></div>
+        <div class="field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••••••" required/></div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">Sign in</button>
+      </form>
+      <p class="auth-switch">No account? <button class="link-btn" onclick="showScreen('register')">Register here</button></p>
+      <button class="link-btn back-btn" onclick="showScreen('landing')">← Back</button>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="register" class="screen screen-auth" style="display:none">
+    <div class="auth-card">
+      <div class="auth-header">
+        <span class="logo"><span class="logo-mark">⬡</span> MarineSecure</span>
+        <button class="theme-btn" onclick="toggleTheme()">◐</button>
+      </div>
+      <h2>Create account</h2>
+      <p class="auth-sub">Researcher accounts are created with read/write access</p>
+      <div id="reg-error" class="alert alert-error" style="display:none"></div>
+      <div id="reg-success" class="alert alert-success" style="display:none"></div>
+      <form onsubmit="handleRegister(event)">
+        <div class="field"><label>Full name</label><input type="text" id="reg-name" placeholder="Dr. Aoife Murphy" required/></div>
+        <div class="field"><label>Email address</label><input type="email" id="reg-email" placeholder="you@institution.ie" required/></div>
+        <div class="field"><label>Institution ID</label><input type="text" id="reg-institution" placeholder="marine-institute-ireland"/></div>
+        <div class="field"><label>Password <span class="field-hint">min 12 chars, uppercase, number, special char</span></label><input type="password" id="reg-password" placeholder="••••••••••••" required/></div>
+        <button type="submit" class="btn btn-primary btn-full" id="reg-btn">Create account</button>
+      </form>
+      <p class="auth-switch">Have an account? <button class="link-btn" onclick="showScreen('login')">Sign in</button></p>
+      <button class="link-btn back-btn" onclick="showScreen('landing')">← Back</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="screen screen-app" style="display:none">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <span class="logo"><span class="logo-mark">⬡</span> MarineSecure</span>
+        <nav class="sidebar-nav">
+          <button class="nav-item active" onclick="showTab('tab-datasets',this)"><span class="nav-icon">📂</span> Datasets</button>
+          <button class="nav-item" onclick="showTab('tab-upload',this)"><span class="nav-icon">⬆</span> Upload</button>
+          <button class="nav-item" id="nav-audit" onclick="showTab('tab-audit',this)" style="display:none"><span class="nav-icon">📋</span> Audit logs</button>
+        </nav>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="user-chip">
+          <div class="user-avatar" id="user-avatar">G</div>
+          <div class="user-info"><span class="user-name" id="user-name">Researcher</span><span class="user-role" id="user-role">researcher</span></div>
+        </div>
+        <div class="sidebar-actions">
+          <button class="theme-btn" onclick="toggleTheme()">◐</button>
+          <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Sign out</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div id="tab-datasets" class="tab active">
+        <div class="tab-header">
+          <div><h2>Datasets</h2><p class="tab-sub">Your institution's oceanographic research data</p></div>
+          <div class="tab-header-actions">
+            <select id="filter-type" onchange="loadDatasets()" class="select-input">
+              <option value="">All types</option>
+              <option value="bathymetric">Bathymetric</option>
+              <option value="ctd_profile">CTD Profile</option>
+              <option value="ais_log">AIS Log</option>
+              <option value="sonar">Sonar</option>
+              <option value="meteorological">Meteorological</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div id="datasets-loading" class="loading-state">Loading datasets...</div>
+        <div id="datasets-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">🌊</div>
+          <h3>No datasets yet</h3>
+          <p>Upload your first oceanographic dataset to get started.</p>
+          <button class="btn btn-primary" onclick="showTab('tab-upload',document.querySelectorAll('.nav-item')[1])">Upload dataset</button>
+        </div>
+        <div id="datasets-grid" class="datasets-grid" style="display:none"></div>
+        <div id="datasets-pagination" class="pagination" style="display:none">
+          <button class="btn btn-ghost btn-sm" id="prev-page" onclick="changePage(-1)">← Previous</button>
+          <span id="page-info" class="page-info"></span>
+          <button class="btn btn-ghost btn-sm" id="next-page" onclick="changePage(1)">Next →</button>
+        </div>
+      </div>
+
+      <div id="tab-upload" class="tab" style="display:none">
+        <div class="tab-header"><div><h2>Upload dataset</h2><p class="tab-sub">CSV, JSON, and NetCDF files up to 50 MB</p></div></div>
+        <div class="upload-layout">
+          <div class="upload-form-card">
+            <div id="upload-error" class="alert alert-error" style="display:none"></div>
+            <div id="upload-success" class="alert alert-success" style="display:none"></div>
+            <form onsubmit="handleUpload(event)" id="upload-form">
+              <div class="field"><label>Title <span class="required">*</span></label><input type="text" id="up-title" placeholder="Celtic Sea Bathymetric Survey 2024" required minlength="3"/></div>
+              <div class="field-row">
+                <div class="field"><label>Data type <span class="required">*</span></label>
+                  <select id="up-type" required class="select-input">
+                    <option value="">Select type</option>
+                    <option value="bathymetric">Bathymetric</option>
+                    <option value="ctd_profile">CTD Profile</option>
+                    <option value="ais_log">AIS Log</option>
+                    <option value="sonar">Sonar</option>
+                    <option value="water_sample">Water Sample</option>
+                    <option value="meteorological">Meteorological</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="field"><label>Region</label><input type="text" id="up-region" placeholder="Celtic Sea"/></div>
+              </div>
+              <div class="field"><label>Description</label><textarea id="up-desc" rows="3" placeholder="Describe the dataset contents..."></textarea></div>
+              <div class="field"><label>Tags <span class="field-hint">comma separated</span></label><input type="text" id="up-tags" placeholder="atlantic, 2024, deepwater"/></div>
+              <div class="field">
+                <label>File <span class="required">*</span></label>
+                <div class="file-drop" id="file-drop" onclick="document.getElementById('up-file').click()">
+                  <input type="file" id="up-file" accept=".csv,.json,.nc,.cdf" style="display:none" onchange="handleFileSelect(this)"/>
+                  <div id="file-drop-content"><div class="file-drop-icon">⬆</div><p>Click to select file</p><p class="file-drop-hint">CSV, JSON, NetCDF · max 50 MB</p></div>
+                </div>
+              </div>
+              <div class="field field-check"><label class="check-label"><input type="checkbox" id="up-public"/><span>Make public</span><span class="field-hint">Visible to all authenticated users</span></label></div>
+              <button type="submit" class="btn btn-primary btn-full" id="upload-btn">Upload dataset</button>
+            </form>
+          </div>
+          <div class="upload-info">
+            <div class="info-card"><h4>Accepted formats</h4><ul class="info-list"><li><code>.csv</code> Comma-separated</li><li><code>.json</code> JSON data</li><li><code>.nc</code> NetCDF</li><li><code>.cdf</code> Common Data Form</li></ul></div>
+            <div class="info-card"><h4>Security controls</h4><ul class="info-list"><li>UUID filename on disk</li><li>MIME type validated</li><li>Institution-scoped</li><li>Audit logged</li></ul></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-audit" class="tab" style="display:none">
+        <div class="tab-header">
+          <div><h2>Audit logs</h2><p class="tab-sub">Tamper-evident record of all system activity</p></div>
+          <div class="tab-header-actions">
+            <select id="filter-action" onchange="loadAuditLogs()" class="select-input"><option value="">All actions</option><option value="LOGIN">Login</option><option value="FAILED_LOGIN">Failed login</option><option value="UPLOAD">Upload</option><option value="DOWNLOAD">Download</option><option value="LOGOUT">Logout</option></select>
+            <select id="filter-success" onchange="loadAuditLogs()" class="select-input"><option value="">All outcomes</option><option value="true">Success</option><option value="false">Failure</option></select>
+          </div>
+        </div>
+        <div id="audit-loading" class="loading-state">Loading...</div>
+        <div id="audit-table-wrap" style="display:none">
+          <table class="audit-table"><thead><tr><th>Time</th><th>Action</th><th>Resource</th><th>IP</th><th>Outcome</th></tr></thead><tbody id="audit-body"></tbody></table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="modal-overlay" class="modal-overlay" style="display:none" onclick="closeModal(event)">
+  <div class="modal"><button class="modal-close" onclick="closeModal()">✕</button><div id="modal-content"></div></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
