@@ -3,7 +3,7 @@
 /*  i will make sure to replace  API_BASE with  live Render URL before deploying   */
 /* ============================================================== */
 
-const API_BASE = 'https://your-render-app.onrender.com';
+const API_BASE = 'https://secure-marine-api.onrender.com';
 // const API_BASE = 'http://localhost:8000';  
 
 /* ---- State ---------------------------------------------------- */
