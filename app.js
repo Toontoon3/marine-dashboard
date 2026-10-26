@@ -58,11 +58,14 @@ function showTab(tabId, btn) {
 
 /*  API HELPER                                                     */
 async function api(path, options = {}) {
-  const headers = { ...options.headers };
-  if (!(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+    const headers = { ...options.headers };
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
   }
-  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+
+  // Always attach token — must come AFTER Content-Type logic
+  const token = state.token || localStorage.getItem('token');
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
@@ -376,7 +379,24 @@ async function handleUpload(e) {
     form.append('is_public',   document.getElementById('up-public').checked ? 'true' : 'false');
     form.append('file',        fileEl.files[0]);
 
-    const result = await api('/datasets/upload', { method: 'POST', body: form });
+    const token = state.token || localStorage.getItem('token');
+    const uploadRes = await fetch(`${API_BASE}/datasets/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form,
+    });
+    if (uploadRes.status === 401) {
+      errEl.textContent = 'Session expired. Please sign in again.';
+      errEl.style.display = 'block';
+      clearAuth();
+      showScreen('login');
+      return;
+    }
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json();
+      throw { detail: err.detail || 'Upload failed.' };
+    }
+    const result = await uploadRes.json();
     if (!result) return;
 
     okEl.textContent   = `"${result.title}" uploaded successfully!`;
