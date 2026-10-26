@@ -179,9 +179,11 @@
               <div class="field"><label>Tags <span class="field-hint">comma separated</span></label><input type="text" id="up-tags" placeholder="atlantic, 2024, deepwater"/></div>
               <div class="field">
                 <label>File <span class="required">*</span></label>
-                <div class="file-drop" id="file-drop" onclick="document.getElementById('up-file').click()">
-                  <input type="file" id="up-file" accept=".csv,.json,.nc,.cdf" style="display:none" onchange="handleFileSelect(this)"/>
-                  <div id="file-drop-content"><div class="file-drop-icon">⬆</div><p>Click to select file</p><p class="file-drop-hint">CSV, JSON, NetCDF · max 50 MB</p></div>
+                <div class="file-drop-wrap">
+                  <input type="file" id="up-file" accept=".csv,.json,.nc,.cdf"
+                    style="width:100%;padding:0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:0.875rem;"
+                    onchange="handleFileSelect(this)"/>
+                  <p id="file-selected-name" style="font-size:0.8rem;color:var(--success);margin-top:0.4rem;display:none"></p>
                 </div>
               </div>
               <div class="field field-check"><label class="check-label"><input type="checkbox" id="up-public"/><span>Make public</span><span class="field-hint">Visible to all authenticated users</span></label></div>

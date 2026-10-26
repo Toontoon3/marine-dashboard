@@ -1,10 +1,10 @@
 /* ============================================================== */
 /*  MARINE SECURE DASHBOARD — app.js                              */
-/*  i will make sure to replace  API_BASE with  live Render URL before deploying   */
+/*  Replace API_BASE with your live Render URL before deploying   */
 /* ============================================================== */
 
 const API_BASE = 'https://secure-marine-api.onrender.com';
-// const API_BASE = 'http://localhost:8000';  
+// const API_BASE = 'http://localhost:8000';  // uncomment for local dev
 
 /* ---- State ---------------------------------------------------- */
 let state = {
@@ -30,11 +30,9 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', saved);
 })();
 
-
-
-
+/* ============================================================== */
 /*  NAVIGATION                                                     */
-
+/* ============================================================== */
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
   const target = document.getElementById(name);
@@ -54,18 +52,15 @@ function showTab(tabId, btn) {
   if (tabId === 'tab-audit')    loadAuditLogs();
 }
 
-
-
+/* ============================================================== */
 /*  API HELPER                                                     */
+/* ============================================================== */
 async function api(path, options = {}) {
-    const headers = { ...options.headers };
-    if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
+  const headers = { ...options.headers };
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
   }
-
-  // Always attach token — must come AFTER Content-Type logic
-  const token = state.token || localStorage.getItem('token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
@@ -86,9 +81,9 @@ async function api(path, options = {}) {
   }
 }
 
-
-/*  AUTH  */
-
+/* ============================================================== */
+/*  AUTH                                                           */
+/* ============================================================== */
 async function handleRegister(e) {
   e.preventDefault();
   const btn   = document.getElementById('reg-btn');
@@ -209,9 +204,9 @@ function setupDashboard() {
   }
 }
 
-
+/* ============================================================== */
 /*  DATASETS                                                       */
-
+/* ============================================================== */
 async function loadDatasets() {
   const loading = document.getElementById('datasets-loading');
   const empty   = document.getElementById('datasets-empty');
@@ -310,30 +305,24 @@ function triggerFileInput() {
 }
 
 function handleFileSelect(input) {
-  const drop    = document.getElementById('file-drop');
-  const content = document.getElementById('file-drop-content');
+  const nameEl = document.getElementById('file-selected-name');
   if (input.files && input.files[0]) {
     const file = input.files[0];
     const size = file.size > 1048576
       ? (file.size / 1048576).toFixed(1) + ' MB'
       : (file.size / 1024).toFixed(0) + ' KB';
-    content.innerHTML = `
-      <div class="file-drop-icon">✅</div>
-      <p style="font-weight:500;color:var(--success)">${escHtml(file.name)}</p>
-      <p class="file-drop-hint">${size} · ready to upload</p>`;
-    drop.classList.add('has-file');
+    if (nameEl) {
+      nameEl.textContent = '✅ ' + file.name + ' (' + size + ') — ready to upload';
+      nameEl.style.display = 'block';
+    }
   }
 }
 
 function resetFileDropZone() {
-  const content = document.getElementById('file-drop-content');
-  const drop    = document.getElementById('file-drop');
-  content.innerHTML = `
-    <div class="file-drop-icon">⬆</div>
-    <p>Click to select file</p>
-    <p class="file-drop-hint">CSV, JSON, NetCDF · max 50 MB</p>`;
-  drop.classList.remove('has-file');
-  document.getElementById('up-file').value = '';
+  const nameEl = document.getElementById('file-selected-name');
+  if (nameEl) { nameEl.textContent = ''; nameEl.style.display = 'none'; }
+  const fileEl = document.getElementById('up-file');
+  if (fileEl) fileEl.value = '';
 }
 
 async function handleUpload(e) {
@@ -379,24 +368,7 @@ async function handleUpload(e) {
     form.append('is_public',   document.getElementById('up-public').checked ? 'true' : 'false');
     form.append('file',        fileEl.files[0]);
 
-    const token = state.token || localStorage.getItem('token');
-    const uploadRes = await fetch(`${API_BASE}/datasets/upload`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: form,
-    });
-    if (uploadRes.status === 401) {
-      errEl.textContent = 'Session expired. Please sign in again.';
-      errEl.style.display = 'block';
-      clearAuth();
-      showScreen('login');
-      return;
-    }
-    if (!uploadRes.ok) {
-      const err = await uploadRes.json();
-      throw { detail: err.detail || 'Upload failed.' };
-    }
-    const result = await uploadRes.json();
+    const result = await api('/datasets/upload', { method: 'POST', body: form });
     if (!result) return;
 
     okEl.textContent   = `"${result.title}" uploaded successfully!`;
@@ -586,16 +558,6 @@ function escAttr(str) {
 /*  INIT                                                           */
 /* ============================================================== */
 document.addEventListener('DOMContentLoaded', function () {
-
-  // FIX 2: wire up file drop zone click properly
-  const fileDrop = document.getElementById('file-drop');
-  if (fileDrop) {
-    fileDrop.addEventListener('click', function (e) {
-      // prevent double-firing from child element clicks
-      if (e.target.closest('#up-file')) return;
-      document.getElementById('up-file').click();
-    });
-  }
 
   // Check API health on landing page
   checkHealth();
