@@ -1,10 +1,10 @@
 /* ============================================================== */
 /*  MARINE SECURE DASHBOARD — app.js                              */
-/*  Replace API_BASE with your live Render URL before deploying   */
+/*  i will make sure to replace  API_BASE with  live Render URL before deploying   */
 /* ============================================================== */
 
-const API_BASE = 'https://secure-marine-api.onrender.com';
-// const API_BASE = 'http://localhost:8000';  // uncomment for local dev
+const API_BASE = 'https://your-render-app.onrender.com';
+// const API_BASE = 'http://localhost:8000';  
 
 /* ---- State ---------------------------------------------------- */
 let state = {
@@ -20,8 +20,9 @@ let state = {
 /* ============================================================== */
 function toggleTheme() {
   const html = document.documentElement;
-  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
-  localStorage.setItem('theme', html.getAttribute('data-theme'));
+  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
 }
 
 (function initTheme() {
@@ -29,14 +30,18 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', saved);
 })();
 
-/* ============================================================== */
+
+
+
 /*  NAVIGATION                                                     */
-/* ============================================================== */
+
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
   const target = document.getElementById(name);
   if (!target) return;
-  target.style.display = name === 'dashboard' ? 'flex' : (name === 'landing' ? 'block' : 'flex');
+  if (name === 'dashboard') target.style.display = 'flex';
+  else if (name === 'landing') target.style.display = 'block';
+  else target.style.display = 'flex';
 }
 
 function showTab(tabId, btn) {
@@ -49,20 +54,19 @@ function showTab(tabId, btn) {
   if (tabId === 'tab-audit')    loadAuditLogs();
 }
 
-/* ============================================================== */
-/*  API HELPER                                                     */
-/* ============================================================== */
-async function api(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
-  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
 
-  // Remove Content-Type for FormData (browser sets it with boundary)
-  if (options.body instanceof FormData) delete headers['Content-Type'];
+
+/*  API HELPER                                                     */
+async function api(path, options = {}) {
+  const headers = { ...options.headers };
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    // Token expired — log out
     clearAuth();
     showScreen('login');
     return null;
@@ -75,17 +79,16 @@ async function api(path, options = {}) {
     return data;
   } catch (e) {
     if (e.status) throw e;
-    // Binary response (file download)
     return { _raw: text, _status: res.status };
   }
 }
 
-/* ============================================================== */
-/*  AUTH                                                           */
-/* ============================================================== */
+
+/*  AUTH  */
+
 async function handleRegister(e) {
   e.preventDefault();
-  const btn = document.getElementById('reg-btn');
+  const btn   = document.getElementById('reg-btn');
   const errEl = document.getElementById('reg-error');
   const okEl  = document.getElementById('reg-success');
 
@@ -108,16 +111,32 @@ async function handleRegister(e) {
     okEl.textContent = 'Account created! Signing you in...';
     okEl.style.display = 'block';
 
-    // Auto-login after registration
-    setTimeout(() => {
-      document.getElementById('login-email').value = document.getElementById('reg-email').value;
-      document.getElementById('login-password').value = document.getElementById('reg-password').value;
-      showScreen('login');
-      document.querySelector('#login form').dispatchEvent(new Event('submit'));
+    // Store credentials then auto-login
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+
+    setTimeout(async () => {
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        });
+        if (!data) return;
+        state.token = data.access_token;
+        state.user  = data.user;
+        localStorage.setItem('token', state.token);
+        localStorage.setItem('user',  JSON.stringify(state.user));
+        setupDashboard();
+        showScreen('dashboard');
+        // FIX 1: Go to datasets tab, not upload
+        showTab('tab-datasets', document.querySelector('.nav-item'));
+      } catch (err) {
+        showScreen('login');
+      }
     }, 1000);
 
   } catch (err) {
-    errEl.textContent = err.detail || 'Registration failed. Please try again.';
+    errEl.textContent   = err.detail || 'Registration failed. Please try again.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
@@ -127,8 +146,8 @@ async function handleRegister(e) {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const btn    = document.getElementById('login-btn');
-  const errEl  = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
 
   errEl.style.display = 'none';
   btn.disabled = true;
@@ -142,10 +161,8 @@ async function handleLogin(e) {
         password: document.getElementById('login-password').value,
       }),
     });
-
     if (!data) return;
 
-    // Store auth state
     state.token = data.access_token;
     state.user  = data.user;
     localStorage.setItem('token', state.token);
@@ -153,10 +170,11 @@ async function handleLogin(e) {
 
     setupDashboard();
     showScreen('dashboard');
+    // FIX 1: Always land on datasets tab
     showTab('tab-datasets', document.querySelector('.nav-item'));
 
   } catch (err) {
-    errEl.textContent = err.detail || 'Sign in failed. Check your credentials.';
+    errEl.textContent   = err.detail || 'Sign in failed. Check your credentials.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
@@ -165,9 +183,7 @@ async function handleLogin(e) {
 }
 
 async function handleLogout() {
-  try {
-    await api('/auth/logout', { method: 'POST' });
-  } catch (_) {}
+  try { await api('/auth/logout', { method: 'POST' }); } catch (_) {}
   clearAuth();
   showScreen('landing');
 }
@@ -182,19 +198,17 @@ function clearAuth() {
 function setupDashboard() {
   if (!state.user) return;
   const name = state.user.full_name || state.user.email;
-  document.getElementById('user-name').textContent = name;
-  document.getElementById('user-role').textContent = state.user.role;
-  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
-
-  // Show audit logs tab for sys_admin
+  document.getElementById('user-name').textContent    = name;
+  document.getElementById('user-role').textContent    = state.user.role;
+  document.getElementById('user-avatar').textContent  = name.charAt(0).toUpperCase();
   if (state.user.role === 'sys_admin') {
     document.getElementById('nav-audit').style.display = 'flex';
   }
 }
 
-/* ============================================================== */
+
 /*  DATASETS                                                       */
-/* ============================================================== */
+
 async function loadDatasets() {
   const loading = document.getElementById('datasets-loading');
   const empty   = document.getElementById('datasets-empty');
@@ -214,7 +228,7 @@ async function loadDatasets() {
     const data = await api(url);
     if (!data) return;
 
-    state.totalDatasets = data.total;
+    state.totalDatasets  = data.total;
     loading.style.display = 'none';
 
     if (data.datasets.length === 0) {
@@ -223,12 +237,9 @@ async function loadDatasets() {
     }
 
     grid.innerHTML = '';
-    data.datasets.forEach(ds => {
-      grid.innerHTML += renderDatasetCard(ds);
-    });
+    data.datasets.forEach(ds => { grid.innerHTML += renderDatasetCard(ds); });
     grid.style.display = 'grid';
 
-    // Pagination
     if (data.total > state.pageSize) {
       const totalPages = Math.ceil(data.total / state.pageSize);
       document.getElementById('page-info').textContent =
@@ -237,9 +248,8 @@ async function loadDatasets() {
       document.getElementById('next-page').disabled = state.currentPage >= totalPages;
       pager.style.display = 'flex';
     }
-
   } catch (err) {
-    loading.textContent = 'Failed to load datasets. ' + (err.detail || '');
+    loading.textContent = 'Failed to load datasets. ' + (err.detail || 'Check your API connection.');
   }
 }
 
@@ -248,14 +258,16 @@ function renderDatasetCard(ds) {
     ? ds.file_size_bytes > 1048576
       ? (ds.file_size_bytes / 1048576).toFixed(1) + ' MB'
       : (ds.file_size_bytes / 1024).toFixed(0) + ' KB'
-    : 'Unknown size';
+    : 'Unknown';
 
   const date = new Date(ds.created_at).toLocaleDateString('en-IE', {
     day: 'numeric', month: 'short', year: 'numeric'
   });
 
+  const dsJson = escAttr(JSON.stringify(ds));
+
   return `
-    <div class="dataset-card" onclick="openDatasetModal(${JSON.stringify(ds).replace(/"/g, '&quot;')})">
+    <div class="dataset-card" onclick="openDatasetModal('${dsJson}')">
       <div class="dataset-card-top">
         <span class="dataset-type-badge">${ds.data_type.replace('_', ' ')}</span>
         ${ds.is_public ? '<span class="dataset-public-badge">public</span>' : ''}
@@ -269,8 +281,14 @@ function renderDatasetCard(ds) {
         <span>${date}</span>
       </div>
       <div class="dataset-actions">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadDataset('${ds.id}', '${escHtml(ds.original_filename)}')">⬇ Download</button>
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openDatasetModal(${JSON.stringify(ds).replace(/"/g, '&quot;')})">Details</button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="event.stopPropagation(); downloadDataset('${ds.id}','${escHtml(ds.original_filename)}')">
+          ⬇ Download
+        </button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="event.stopPropagation(); openDatasetModal('${dsJson}')">
+          Details
+        </button>
       </div>
     </div>`;
 }
@@ -282,12 +300,16 @@ function changePage(dir) {
 }
 
 /* ============================================================== */
-/*  UPLOAD                                                         */
+/*  UPLOAD — FIX 2: proper file input trigger                     */
 /* ============================================================== */
+function triggerFileInput() {
+  document.getElementById('up-file').click();
+}
+
 function handleFileSelect(input) {
   const drop    = document.getElementById('file-drop');
   const content = document.getElementById('file-drop-content');
-  if (input.files[0]) {
+  if (input.files && input.files[0]) {
     const file = input.files[0];
     const size = file.size > 1048576
       ? (file.size / 1048576).toFixed(1) + ' MB'
@@ -295,9 +317,20 @@ function handleFileSelect(input) {
     content.innerHTML = `
       <div class="file-drop-icon">✅</div>
       <p style="font-weight:500;color:var(--success)">${escHtml(file.name)}</p>
-      <p class="file-drop-hint">${size}</p>`;
+      <p class="file-drop-hint">${size} · ready to upload</p>`;
     drop.classList.add('has-file');
   }
+}
+
+function resetFileDropZone() {
+  const content = document.getElementById('file-drop-content');
+  const drop    = document.getElementById('file-drop');
+  content.innerHTML = `
+    <div class="file-drop-icon">⬆</div>
+    <p>Click to select file</p>
+    <p class="file-drop-hint">CSV, JSON, NetCDF · max 50 MB</p>`;
+  drop.classList.remove('has-file');
+  document.getElementById('up-file').value = '';
 }
 
 async function handleUpload(e) {
@@ -310,8 +343,22 @@ async function handleUpload(e) {
   errEl.style.display = 'none';
   okEl.style.display  = 'none';
 
-  if (!fileEl.files[0]) {
-    errEl.textContent   = 'Please select a file to upload.';
+  if (!fileEl.files || !fileEl.files[0]) {
+    errEl.textContent   = 'Please select a file first by clicking the upload area.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const title = document.getElementById('up-title').value.trim();
+  const type  = document.getElementById('up-type').value;
+
+  if (!title) {
+    errEl.textContent   = 'Please enter a dataset title.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!type) {
+    errEl.textContent   = 'Please select a data type.';
     errEl.style.display = 'block';
     return;
   }
@@ -321,32 +368,29 @@ async function handleUpload(e) {
 
   try {
     const form = new FormData();
-    form.append('title',     document.getElementById('up-title').value);
-    form.append('data_type', document.getElementById('up-type').value);
-    form.append('region',    document.getElementById('up-region').value);
+    form.append('title',       title);
+    form.append('data_type',   type);
+    form.append('region',      document.getElementById('up-region').value);
     form.append('description', document.getElementById('up-desc').value);
-    form.append('tags',      document.getElementById('up-tags').value);
-    form.append('is_public', document.getElementById('up-public').checked);
-    form.append('file',      fileEl.files[0]);
+    form.append('tags',        document.getElementById('up-tags').value);
+    form.append('is_public',   document.getElementById('up-public').checked ? 'true' : 'false');
+    form.append('file',        fileEl.files[0]);
 
-    await api('/datasets/upload', { method: 'POST', body: form });
+    const result = await api('/datasets/upload', { method: 'POST', body: form });
+    if (!result) return;
 
-    okEl.textContent  = `Dataset uploaded successfully.`;
+    okEl.textContent   = `"${result.title}" uploaded successfully!`;
     okEl.style.display = 'block';
 
     // Reset form
     document.getElementById('upload-form').reset();
-    document.getElementById('file-drop-content').innerHTML = `
-      <div class="file-drop-icon">⬆</div>
-      <p>Click to select file</p>
-      <p class="file-drop-hint">CSV, JSON, NetCDF · max 50 MB</p>`;
-    document.getElementById('file-drop').classList.remove('has-file');
+    resetFileDropZone();
 
-    // Switch to datasets tab after short delay
+    // Go to datasets tab after delay
     setTimeout(() => {
       state.currentPage = 1;
       showTab('tab-datasets', document.querySelector('.nav-item'));
-    }, 1500);
+    }, 1800);
 
   } catch (err) {
     errEl.textContent   = err.detail || 'Upload failed. Please try again.';
@@ -365,11 +409,18 @@ async function downloadDataset(id, filename) {
     const res = await fetch(`${API_BASE}/datasets/${id}/download`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
-    if (!res.ok) { alert('Download failed. You may not have access to this dataset.'); return; }
+    if (!res.ok) {
+      alert('Download failed. You may not have access to this dataset.');
+      return;
+    }
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (err) {
     alert('Download failed: ' + (err.message || 'Unknown error'));
@@ -377,10 +428,16 @@ async function downloadDataset(id, filename) {
 }
 
 /* ============================================================== */
-/*  DATASET MODAL                                                  */
+/*  MODAL                                                          */
 /* ============================================================== */
-function openDatasetModal(ds) {
-  if (typeof ds === 'string') ds = JSON.parse(ds);
+function openDatasetModal(dsOrStr) {
+  let ds;
+  try {
+    ds = typeof dsOrStr === 'string' ? JSON.parse(dsOrStr) : dsOrStr;
+  } catch (e) {
+    return;
+  }
+
   const size = ds.file_size_bytes
     ? ds.file_size_bytes > 1048576
       ? (ds.file_size_bytes / 1048576).toFixed(1) + ' MB'
@@ -403,7 +460,10 @@ function openDatasetModal(ds) {
     ${ds.description ? `<p style="font-size:0.875rem;color:var(--text-2);margin-bottom:1.5rem">${escHtml(ds.description)}</p>` : ''}
     ${ds.tags ? `<p style="font-size:0.8rem;color:var(--text-3);margin-bottom:1.5rem">Tags: ${escHtml(ds.tags)}</p>` : ''}
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="downloadDataset('${ds.id}','${escHtml(ds.original_filename)}')">⬇ Download dataset</button>
+      <button class="btn btn-primary"
+        onclick="downloadDataset('${ds.id}','${escHtml(ds.original_filename)}')">
+        ⬇ Download dataset
+      </button>
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
     </div>`;
 
@@ -429,7 +489,7 @@ async function loadAuditLogs() {
     const action  = document.getElementById('filter-action')?.value || '';
     const success = document.getElementById('filter-success')?.value || '';
     let url = '/admin/audit-logs?page=1&page_size=50';
-    if (action)  url += `&action=${action}`;
+    if (action)         url += `&action=${action}`;
     if (success !== '') url += `&success=${success}`;
 
     const data = await api(url);
@@ -437,10 +497,9 @@ async function loadAuditLogs() {
 
     const body = document.getElementById('audit-body');
     body.innerHTML = '';
-
     data.logs.forEach(log => {
-      const time   = new Date(log.created_at).toLocaleString('en-IE');
-      const ok     = log.success;
+      const time = new Date(log.created_at).toLocaleString('en-IE');
+      const ok   = log.success;
       body.innerHTML += `
         <tr>
           <td>${time}</td>
@@ -459,14 +518,16 @@ async function loadAuditLogs() {
 }
 
 /* ============================================================== */
-/*  HEALTH CHECK                                                   */
+/*  HEALTH CHECK — FIX 3: show stat on landing                   */
 /* ============================================================== */
 async function checkHealth() {
   const el = document.getElementById('stat-health');
+  if (!el) return;
   try {
-    const data = await fetch(`${API_BASE}/health`).then(r => r.json());
+    const res  = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
     if (data.status === 'healthy') {
-      el.textContent = 'Healthy';
+      el.textContent = 'Healthy ✓';
       el.style.color = 'var(--success)';
     } else {
       el.textContent = 'Degraded';
@@ -482,27 +543,50 @@ async function checkHealth() {
 /*  UTILITIES                                                      */
 /* ============================================================== */
 function escHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function escAttr(str) {
   if (!str) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
 }
 
 /* ============================================================== */
 /*  INIT                                                           */
 /* ============================================================== */
-(function init() {
-  // Check API health on landing page load
+document.addEventListener('DOMContentLoaded', function () {
+
+  // FIX 2: wire up file drop zone click properly
+  const fileDrop = document.getElementById('file-drop');
+  if (fileDrop) {
+    fileDrop.addEventListener('click', function (e) {
+      // prevent double-firing from child element clicks
+      if (e.target.closest('#up-file')) return;
+      document.getElementById('up-file').click();
+    });
+  }
+
+  // Check API health on landing page
   checkHealth();
 
   // Restore session if token exists
   if (state.token && state.user) {
     setupDashboard();
     showScreen('dashboard');
+    showTab('tab-datasets', document.querySelector('.nav-item'));
     loadDatasets();
   } else {
     showScreen('landing');
   }
-})();
+});
